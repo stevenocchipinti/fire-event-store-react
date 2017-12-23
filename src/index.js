@@ -3,6 +3,17 @@ import Firebase from "firebase"
 import "firebase/firestore"
 import { Broadcast, Subscriber } from "react-broadcast"
 
+export function initializeApp(config) {
+  Firebase.initializeApp({
+    apiKey: "AIzaSyAfu0kXXviAaCCl2j8DTwBDlkANNZKkdkw",
+    authDomain: "fire-event-store-demo.firebaseapp.com",
+    databaseURL: "https://fire-event-store-demo.firebaseio.com",
+    projectId: "fire-event-store-demo",
+    storageBucket: "fire-event-store-demo.appspot.com",
+    messagingSenderId: "932085506803"
+  })
+}
+
 export class FireEventStore extends Component {
   constructor(props) {
     super(props)
