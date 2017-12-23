@@ -3,6 +3,10 @@ import Firebase from "firebase"
 import "firebase/firestore"
 import { Broadcast, Subscriber } from "react-broadcast"
 
+export function initializeApp(config) {
+  Firebase.initializeApp(config)
+}
+
 export class FireEventStore extends Component {
   constructor(props) {
     super(props)
