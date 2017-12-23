@@ -5,14 +5,31 @@
 [npm-badge]: https://img.shields.io/npm/v/fire-event-store-react.svg?style=flat-square
 [npm]: https://www.npmjs.com/package/fire-event-store-react
 
+This project is an experiment because I wanted to see if I could make a simple
+API for using Firestore as an event store in an event sourcing application.
+
+The concepts/technology I am playing with here are:
+- Event Sourcing
+- Firebase / Firestore
+- CQRS / Message Bus (one component to write, another to read)
+- React context (using `react-broadcast` for now, until it changes!!)
+- HOC vs render props vs Function as Child Components
+
 [`fire-event-store-react`](https://www.npmjs.com/package/fire-event-store-react)
-provides a reliable way ...
+provides two Function as Child Components:
+
+1. `<FireEventStore>` does a few things:
+  - Connects to Firebase and runs the documents at a given key through a reducer
+  - Makes the resulting state from that reducer available to children
+  - Puts a Firestore reference in context for `<EventEmitter>` components
+
+2. `<EventEmitter>` only does one thing:
+  - Sends a new event to Firebase
 
 **Please note:** As with anything that uses
-[context](https://reactjs.org/docs/context.html), this library is experimental.
-It may cease working in some future version of React. For now, it's a practical
-workaround for the router. If we discover some better way to do things in the
-future, rest assured we'll do our best to share what we learn.
+[context](https://reactjs.org/docs/context.html), this library and
+`react-broadcast` which this library is based are both experimental.
+Either of these may cease working in some future version of React.
 
 ## Installation
 
@@ -38,6 +55,7 @@ The UMD build is also available on [unpkg](https://unpkg.com):
 ```
 
 You can find the library on `window.FireEventStoreReact`.
+(Haven't actually tested this!)
 
 ## Usage
 
@@ -46,78 +64,73 @@ functionality we're after:
 
 ```js
 import React from "react"
-import { FireEventStore, EventEmitter } from "fire-event-store-react"
+import {
+  initializeApp,
+  FireEventStore,
+  EventEmitter
+} from "fire-event-store-react"
 
-// const users = [{ name: "Michael Jackson" }, { name: "Ryan Florence" }]
-//
-// class UpdateBlocker extends React.Component {
-//   shouldComponentUpdate() {
-//     // This is how you indicate to React's reconciler that you don't
-//     // need to be updated. It's a great way to boost performance when
-//     // you're sure (based on your props and state) that your render
-//     // output will not change, but it makes it difficult for libraries
-//     // to communicate changes down the hierarchy that you don't really
-//     // know anything about.
-//     return false
-//   }
-//
-//   render() {
-//     return this.props.children
-//   }
-// }
-//
-// class App extends React.Component {
-//   state = {
-//     currentUser: users[0]
-//   }
-//
-//   componentDidMount() {
-//     // Randomly change the current user every 2 seconds.
-//     setInterval(() => {
-//       const index = Math.floor(Math.random() * users.length)
-//       this.setState({ currentUser: users[index] })
-//     }, 2000)
-//   }
-//
-//   render() {
-//     return (
-//       <Broadcast channel="currentUser" value={this.state.currentUser}>
-//         <UpdateBlocker>
-//           <Subscriber channel="currentUser">
-//             {currentUser => <p>The current user is {currentUser.name}</p>}
-//           </Subscriber>
-//         </UpdateBlocker>
-//       </Broadcast>
-//     )
-//   }
-// }
-```
+// Setup the Firebase app
+initializeApp({
+  apiKey: "...",
+  authDomain: "...",
+  databaseURL: "...",
+  projectId: "...",
+  storageBucket: "...",
+  messagingSenderId: "..."
+})
 
-By default `<Broadcast value>` values are compared using the `===` (strict
-equality) operator. To change this behavior, use `<Broadcast compareValues>`
-which is a function that takes the `prevValue` and `nextValue` and compares
-them. If `compareValues` returns `true`, no re-render will occur.
+// Create a reducer
+const initialState = { counter: 0 }
+const reducer = (state = initialState, action) => {
+  if (!action) return state
+  switch (action.type) {
+    case "INCREMENT":
+      return { counter: state.counter + 1 }
+    case "DECREMENT":
+      return { counter: state.counter - 1 }
+    default:
+      return state
+  }
+}
 
-You may prefer to wrap these components into channel-specific pairs to avoid
-typos and other problems with the indirection involved with the channel strings:
+// Use <FireEventStore /> around any component you want to be a container that
+// is connected to the event stream, this could just be once at the top of the
+// component tree and passed down via props
+const App = props => (
+  <FireEventStore
+    stream="counter-events"                    // Any name for your event stream
+    firebaseKey="counters/demo/counter-events" // Location of events in Firebase
+    reducer={reducer}                          // The reducer from earlier
+  >
+    {state => (
+      <div className="App">
+        {/* Use the state as you normally would with this.state */}
+        <div>{state.counter}</div>
 
-```js
-//// Broadcasts.js
-//import { Broadcast, Subscriber } from 'react-broadcast'
-//
-//const CurrentUserChannel = 'currentUser'
-//
-//export const CurrentUserBroadcast = (props) =>
-//  <Broadcast {...props} channel={CurrentUserChannel} />
-//
-//export const CurrentUserSubscriber = (props) =>
-//  <Subscriber {...props} channel={CurrentUserChannel} />
-//
-//// App.js
-//import { CurrentUserBroadcast, CurrentUserSubscriber } from './Broadcasts'
-//
-//<CurrentUserBroadcast value={user}/>
-//<CurrentUserSubscriber>{user => ...}</CurrentUserSubscriber>
+        {/* Use the <EventEmitter /> component anywhere to emit a new event */}
+        <EventEmitter stream="counter-events">
+          {emit => (
+            <div>
+              <button
+                className="button"
+                onClick={() => emit({ type: "INCREMENT" })}
+              >
+                +
+              </button>
+              <button
+                className="button"
+                onClick={() => emit({ type: "DECREMENT" })}
+              >
+                -
+              </button>
+            </div>
+          )}
+        </EventEmitter>
+      </div>
+    )}
+  </FireEventStore>
+)
 ```
 
 Enjoy!
